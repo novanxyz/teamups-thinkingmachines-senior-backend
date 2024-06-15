@@ -1,0 +1,7 @@
+.root-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: center;
+  width: fit-content;
+}

@@ -1,0 +1,7 @@
+.root-container {
+  min-height: 300px;
+}
+
+.root-container > *:not(:last-child) {
+  margin-bottom: 2rem;
+}

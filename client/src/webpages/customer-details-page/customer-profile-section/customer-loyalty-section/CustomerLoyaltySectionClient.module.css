@@ -1,0 +1,20 @@
+.loyalty-header-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.loyalty-header-title {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.url-text {
+  font-size: smaller;
+}
+
+.loyalty-header-title > :first-child {
+  margin-right: 0.25rem;
+}
