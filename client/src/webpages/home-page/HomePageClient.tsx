@@ -18,7 +18,7 @@ export default function HomePageClient(props: IHomePageClientProps) {
         <PageHeaderClient hasDivider title='Home' />
       </section>
       <section>
-        <PageSubHeaderClient title='Hello!' />
+        <PageSubHeaderClient title='Hello, Novan!' />
         <Row>
           <Col span={12}>
             <SeedDataCardClient hasSeedData={hasSeedData} />
