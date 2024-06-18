@@ -1,6 +1,21 @@
 version: "3"
 
 services:
+  backend:
+    build:
+      context: ./server/
+      dockerfile: Dockerfile
+    ports:
+      - 4000:4000
+    volumes:
+      - ./server/:/usr/src/app
+      - /usr/src/app/node_modules # mount node_modules for caching
+    depends_on:
+      - mongo # wait for mongo service container
+    environment:
+      - PORT=4000
+      - MONGODB_URI=mongodb://mongo:27017/customer-loyalty # mongo container address
+
   web:
     build:
       context: ./client/
@@ -10,13 +25,14 @@ services:
     volumes:
       - ./client/:/usr/src/app # mount local working directory for live reload
       - /usr/src/app/node_modules # mount node_modules for caching
+
     depends_on:
       - mongo # wait for mongo service container
     environment:
       - MONGODB_URI=mongodb://mongo:27017/customer-loyalty # mongo container address
-      - NEXT_PUBLIC_HEALTH_CHECK_URL=TODO
-      - NEXT_PUBLIC_LOYALTY_TIER_URL=TODO
-      - NEXT_PUBLIC_REWARDS_POINTS_URL=TODO
+      - NEXT_PUBLIC_HEALTH_CHECK_URL=http://localhost:4000/api/ping
+      - NEXT_PUBLIC_LOYALTY_TIER_URL=http://localhost:4000/api/loyalty-tier
+      - NEXT_PUBLIC_REWARDS_POINTS_URL=http://localhost:4000/api/rewards-points
 
   mongo:
     image: mongo:latest
@@ -27,3 +43,4 @@ services:
 
 volumes:
   mongo-data:
+  
