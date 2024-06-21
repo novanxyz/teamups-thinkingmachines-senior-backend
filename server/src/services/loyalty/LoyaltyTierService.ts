@@ -103,6 +103,16 @@ export class LoyaltyTierService {
         }
         orderSummaries.push(orderSummary);
         total_points += orderTotalPoints;
+      }else {
+        const orderTotalPoints = order.items.reduce((sum, i) => sum + i.price_usd, 0);
+        const orderSummary : IOrderLoyaltyPointsSummary = {
+          order_id: order._id.toString(),
+          eligible_promotion_ids: [],
+          effective_promotion_id: null,
+          points_earned: orderTotalPoints
+        }
+        orderSummaries.push(orderSummary);
+        total_points += orderTotalPoints;
       }
     }
 
