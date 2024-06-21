@@ -16,94 +16,100 @@ export class LoyaltyTierService {
   }
 
   private getLoyaltyTierforPoint(point: number): ILoyaltyTierSummary {
-    let idx = 0
-    let loyaltyTier : TLoyaltyTier = 'none'
+    let idx = 0 ;
+    let loyaltyTier : TLoyaltyTier = 'none' ;
 
-    let num_points_to_next_tier : number | null =  this.thresholds[idx].min_points_required ; 
+    let numPointsToNextTier : number | null =  this.thresholds[idx].min_points_required ; 
 
     while ( this.thresholds[idx] && point >= this.thresholds[idx].min_points_required ){
       loyaltyTier = this.thresholds[idx].tier;
       idx++
     }
-    num_points_to_next_tier =  loyaltyTier == 'gold' ? null : this.thresholds[idx].min_points_required - point
-    return { tier: loyaltyTier, num_points_to_next_tier: num_points_to_next_tier} 
+    numPointsToNextTier =  loyaltyTier == 'gold' ? null : this.thresholds[idx].min_points_required - point;
+    return { tier: loyaltyTier, num_points_to_next_tier: numPointsToNextTier} as ILoyaltyTierSummary ;
   }
 
   private getPromotionsForOrder(order: IEntityOrder ): IOrderPromotion[] {
     
-    let order_date = new Date(order.date.year,order.date.month,order.date.date)
-    let total_price = order.items.reduce((sum, i) => sum + i.price_usd, 0);
-    let points = 0
+    const orderDate = new Date(order.date.year,order.date.month,order.date.date);
+    const totalPrice = order.items.reduce((sum, i) => sum + i.price_usd, 0);
 
-    let eligible_promotions : IOrderPromotion[] = []
 
-    let qty_promo = this.promotions.find( p => p.config.type == 'order_min_quantity' && p.config.min_order_item_quantity <= order.items.length )
-    let total_promo = this.promotions.find( p => p.config.type == 'order_min_total_price' && p.config.min_order_total_price_usd <= total_price )   
-    let day_promo = this.promotions.find( p => p.config.type == 'order_day_of_purchase' && p.config.day == order_date.getDay() )   
+    let eligible_promotions : IOrderPromotion[] = []:
 
-    if (qty_promo){
-      let point = Math.round(total_price * qty_promo.points_multiplier * 100)/100
-      points += point 
-      eligible_promotions.push({ order: order ,promotion: qty_promo, points_earned: point })
-    }
 
-    if (total_promo){
-      let  point = Math.round(total_price * total_promo.points_multiplier*100)/100
-      points +=  point
-      eligible_promotions.push({ order: order  ,promotion: total_promo, points_earned: point })
-      
-    }
-    if (day_promo){
-      let point = Math.round(total_price * day_promo.points_multiplier*100)/100
-      points +=  point
-      eligible_promotions.push({ order: order  , promotion: day_promo, points_earned: point })
-    }
+    for ( var promo in this.promotions ) {
 
-    for (var item of  order.items){
-      let item_promo = this.promotions.find( p => p.config.type == 'item_category' && p.config.item_category == item.category ) 
-      if (item_promo ){
-        let point = Math.round(item.price_usd * item_promo.points_multiplier*100)/100
-        points += point
-        eligible_promotions.push({ order: order, promotion: item_promo, points_earned: point })
+      switch ( promo.config.type ) {
+      'order_min_quantity' : {
+        if ( promo.config.min_order_item_quantity >= order.items.length ) {
+          const point = Math.round( totalPrice * qty_promo.points_multiplier * 100)/100 ;
+          eligible_promotions.push({ order: order ,promotion: qty_promo, points_earned: point });
         }
-    }
-    
+      };
+      'order_min_total_price' : {
+        if ( promo.config.min_order_total_price_usd <= totalPrice ) {
+          const  point = Math.round( total_price * total_promo.points_multiplier*100)/100 ;
+          eligible_promotions.push({ order: order  ,promotion: total_promo, points_earned: point });
+        }
+      };
+      'order_day_of_purchase' : {
+        if ( promo.config.day == orderDate.getDay() ) {
+          const point = Math.round( totalPrice * day_promo.points_multiplier*100)/100;
+          eligible_promotions.push({ order: order  , promotion: day_promo, points_earned: point });
+        }
+      };
+      'item_category' : {
+        for ( var item of order.items ) {
+          if ( promo.config.item_category == item.category ) {
+            const point = Math.round(item.price_usd * item_promo.points_multiplier*100)/100 ;
+            eligible_promotions.push({ order: order, promotion: item_promo, points_earned: point }) ;
+          }
+        }
+      };
+      }
+
+
     return eligible_promotions
   }
 
   public getLoyaltyTier(orders: IEntityOrder[]): ILoyaltyTierSummary {        
     
-    let order_promotions = orders.map(o => this.getPromotionsForOrder(o) );
-    let point =  order_promotions.reduce((prev,cur)=> prev + cur.reduce((p,c)=>p+c.points_earned,0) ,0);
-    let loyalty_repsone = this.getLoyaltyTierforPoint(point)
-    return loyalty_repsone;
+    const orderPromotions = orders.map(o => this.getPromotionsForOrder(o) );
+    let points = 0;
+    if ( orderPromotions.length ) {
+      points =  orderPromotions.reduce((prev,cur)=> prev + cur.reduce((p,c)=>p+c.points_earned,0) ,0);
+    } else {
+      points = order.items.reduce((sum, i) => sum + i.price_usd, 0);
+    }
+   
+    return this.getLoyaltyTierforPoint(points);
   }
 
   public getRewardsPoints(orders: IEntityOrder[]): ILoyaltyRewardsPointsSummary {
     
-    let total_points = 0;
-    let order_summaries =[]
+    let totalPoints = 0;
+    let orderSummaries =[];
     for (var order of orders ){
-      let order_promotions = this.getPromotionsForOrder(order);
-      if ( order_promotions.length ) {
-        let max_promo = order_promotions.reduce((prev,cur) => cur.points_earned > prev.points_earned ? cur: prev ,order_promotions[0])
-        let order_total_points = order_promotions.reduce((sum,cur) => sum+cur.points_earned,0)
-        let order_summary : IOrderLoyaltyPointsSummary = {
+      const orderPromotions = this.getPromotionsForOrder(order);
+      if ( orderPromotions.length ) {
+        const maxPromo = orderPromotions.reduce((prev,cur) => cur.points_earned > prev.points_earned ? cur: prev ,order_promotions[0]);
+        const orderTotalPoints = orderPromotions.reduce((sum,cur) => sum+cur.points_earned,0);
+        const orderSummary : IOrderLoyaltyPointsSummary = {
           order_id: order._id.toString(),
-          eligible_promotion_ids: order_promotions.map(op=> op.promotion._id.toString()),
-          effective_promotion_id: max_promo.promotion._id.toString(),
-          points_earned: order_total_points
+          eligible_promotion_ids: orderPromotions.map(op=> op.promotion._id.toString()),
+          effective_promotion_id: maxPromo.promotion._id.toString(),
+          points_earned: orderTotalPoints
         }
-        order_summaries.push(order_summary);
-        total_points +=order_total_points;
+        orderSummaries.push(orderSummary);
+        total_points += orderTotalPoints;
       }
     }
 
-    let response : ILoyaltyRewardsPointsSummary = {
-      total_points: total_points,
-      order_summaries: order_summaries
-    }
-    return response  ;
+    return {
+      total_points: totalPoints,
+      order_summaries: orderSummaries
+    } as ILoyaltyRewardsPointsSummary ;
   }
 
 }
